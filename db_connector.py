@@ -25,12 +25,15 @@ def parse_queryset(response):
     return result
 
 
-def get_prompt_id(connector, prompt_name):
+def get_prompt_id(connector, prompt_name, script_id):
     query = """
     SELECT id FROM prompts
+    INNER JOIN units ON prompts.unit_id = units.id
     WHERE prompts.prompt_name='{prompt_name}'
+    AND  units.script_id = {script_id}
     """.format(
-        prompt_name=prompt_name
+        prompt_name=prompt_name,
+        script_id=script_id,
     )
     return int(fetch_data(connector, query)[0])
 

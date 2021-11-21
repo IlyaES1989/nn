@@ -3,7 +3,6 @@ from os import getenv
 from dotenv import load_dotenv
 
 from db_connector import (
-    conn,
     get_prompt_id,
     get_entities,
     get_prompt_text,
@@ -32,24 +31,8 @@ USING_CLASSES = {
     "result": result,
 }
 
-load_dotenv()
 
-conn = connect(
-    database=getenv("POSTGRES_DB"),
-    user=getenv("POSTGRES_USER"),
-    password=getenv("POSTGRES_PASSWORD"),
-    host=getenv("POSTGRES_HOST"),
-    port=getenv("POSTGRES_PORT"),
-)
-
-
-entry_point = "hello"
-while entry_point:
-    entry_point_id = get_prompt_id(conn, entry_point)
-    nn.counter(entry_point, "+")
-
-    entities = get_entities(conn, entry_point_id)
-
+def say_text(entry_point_id, entry_point):
     if nv.has_record(entry_point):
         nv.say(entry_point)
     else:
@@ -61,19 +44,45 @@ while entry_point:
 
         text = set_prompt_text_vars(raw_text, text_vars, text_values)
         nv.synthesize(text)
-        nv.say(entry_point)
 
-    with nv.listen(entities, stop_condition="OR") as r:
-        value = None
-        for ent in entities:
-            if result.has_entity(ent):
-                value = result.entity(ent)
-                break
-        next_step = get_next_step(conn, entry_point_id, value, nn.counter(entry_point))
-        post_actions = get_post_actions(conn, entry_point_id, value)
-        execute_actions(post_actions, USING_CLASSES)
 
-        entry_point = next_step
+def run(connector, script_id):
+    entry_point = "hello"
+    while entry_point:
+        entry_point_id = get_prompt_id(conn, entry_point, script_id)
+        nn.counter(entry_point, "+")
 
-nn.dialog.result = nn.RESULT_DONE
-conn.close()
+        entities = get_entities(conn, entry_point_id)
+
+        say_text(entry_point_id, entry_point)
+
+        with nv.listen(entities, stop_condition="OR") as r:
+            value = None
+            for ent in entities:
+                if result.has_entity(ent):
+                    value = result.entity(ent)
+                    break
+            next_step = get_next_step(
+                conn, entry_point_id, value, nn.counter(entry_point)
+            )
+            post_actions = get_post_actions(conn, entry_point_id, value)
+            execute_actions(post_actions, USING_CLASSES)
+
+            entry_point = next_step
+
+    nn.dialog.result = nn.RESULT_DONE
+    conn.close()
+
+
+if __name__ == "__main__":
+    load_dotenv()
+
+    conn = connect(
+        database=getenv("POSTGRES_DB"),
+        user=getenv("POSTGRES_USER"),
+        password=getenv("POSTGRES_PASSWORD"),
+        host=getenv("POSTGRES_HOST"),
+        port=getenv("POSTGRES_PORT"),
+    )
+
+    run(conn, 1)
